@@ -6,23 +6,22 @@ import { CoolMode } from "@/components/ui/cool-mode";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Heart } from "lucide-react";
 import Link from "next/link";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 
 const Header = () => {
-  let user:any = null;
-  let token = null;
-  function checkLogged() {
-    try {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) user = JSON.parse(storedUser);
-      token = localStorage.getItem("token");
-    } catch (error) {
-      localStorage.removeItem("user");
-    }
-  }
+  const [user, setUser] = useState<any>(null)
+  const [token, setToken] = useState<string | null>(null)
+
   useEffect(() => {
-    checkLogged();
-  }, []);
+    try {
+      const storedUser = localStorage.getItem("user")
+      if (storedUser) setUser(JSON.parse(storedUser))
+    } catch {
+      localStorage.removeItem("user")
+    }
+
+    setToken(localStorage.getItem("token"))
+  }, [])
   return (
     <>
       <div className="relative">
@@ -79,42 +78,33 @@ const Header = () => {
               />
               <CoolMode>
                 <header className="h-[64px] flex items-center justify-between px-6 shadow">
-                  <div className="relative group">
-                    <div className="flex items-center gap-2 cursor-pointer px-2 py-1">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="22"
-                        height="22"
-                        fill="currentColor"
-                        viewBox="0 0 16 16"
-                      >
-                        <path d="M8 8a3 3 0 1 0 0-6a3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0a2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1s1-4 6-4s6 3 6 4" />
-                      </svg>
-                      {!token && <Link href="/login">Вход</Link>}
-                    </div>
 
-                    {token && (
-                      <div className="absolute right-0 top-full mt-2 bg-white text-black shadow-lg rounded-[10px] p-[10px] w-[200px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                        <p className="font-semibold">
-                          {user?.userName || user?.name || "Пользователь"}
-                        </p>
-                        <p className="text-gray-500 text-sm">
-                          {user?.email || ""}
-                        </p>
-                        <button
-                          className="mt-2 text-red-500 text-sm"
-                          onClick={() => {
-                            localStorage.removeItem("token");
-                            localStorage.removeItem("user");
-                            window.location.reload();
-                          }}
-                        >
-                          Выйти
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </header>
+          <div className="relative group">
+            <div className="flex items-center gap-2 cursor-pointer px-2 py-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 8a3 3 0 1 0 0-6a3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0a2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1s1-4 6-4s6 3 6 4" />
+              </svg>
+              {!token && <Link href="/login">Вход</Link>}
+            </div>
+
+            {token && (
+              <div className="absolute right-0 top-full mt-2 bg-white text-black shadow-lg rounded-[10px] p-[10px] w-[200px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <p className="font-semibold">{user?.userName || user?.name || "Пользователь"}</p>
+                <p className="text-gray-500 text-sm">{user?.email || ""}</p>
+                <button
+                  className="mt-2 text-red-500 text-sm"
+                  onClick={() => {
+                    localStorage.removeItem("token")
+                    localStorage.removeItem("user")
+                    window.location.reload()
+                  }}
+                >
+                  Выйти
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
               </CoolMode>
               <AnimatedThemeToggler />
               <Link href={"/favorite"}>

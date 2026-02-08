@@ -2,112 +2,170 @@
 import { axiosRequest } from '@/utils/axios';
 import Image from 'next/image';
 import React, { useEffect, useState } from 'react'
+import { Heart, Trash2, DollarSign, Car } from 'lucide-react';
+import Link from 'next/link';
 
-const Page = () => {
-    const [data, setData] = useState<any>([]);
-    const [loading, setLoading] = useState(true);
+interface Favorite {
+    id: number;
+    type: string;
+    carId: number;
+    model: string;
+    brand: string;
+    price: number;
+    image: string;
+}
 
-    // Та же функция очистки имени файла
-    const getFileName = (path: string) => {
-        if (!path) return '';
-        const parts = path.split('/');
-        return parts[parts.length - 1];
-    };
+const FavoritesPage = () => {
+    const [favorites, setFavorites] = useState<Favorite[]>([])
+    const [isLoading, setIsLoading] = useState(true)
 
-    async function getClient() {
-        try {
-            let { data } = await axiosRequest.get(`/Orders`)
-            // Судя по твоему JSON, приходит массив объектов напрямую
-            setData(Array.isArray(data) ? data : data.orders || []);
-        } catch (error) {
-            console.error("Ошибка при получении списка заказов:", error);
-        } finally {
-            setLoading(false);
-        }
+   async function fetchFavorites() {
+     try {
+         const { data } = await axiosRequest.get(`/Favorites/my`)
+         setFavorites(data)
+     } catch (error) {
+         console.error(error);
+     } finally {
+         setIsLoading(false)
+     }
     }
 
-    async function deleteClient(id: number) {
-        if(!confirm("Удалить этот заказ?")) return;
-        try {
-            await axiosRequest.delete(`/Orders/${id}`)
-            getClient();
-        } catch (error) {
-            console.error("Ошибка при удалении заказа:", error);
-        }
+   async function deleteFavorite(id: number) {
+    try {
+        await axiosRequest.delete(`/Favorites/car/${id}`)
+        setFavorites(prev => prev.filter(fav => fav.id !== id))
+    } catch (error) {
+        console.error(error);
     }
+}
 
     useEffect(() => {
-        getClient();
-    }, []);
+        fetchFavorites()
+    }, [])
 
-    if (loading) return <div className="p-10 font-black animate-pulse text-indigo-500">LOADING_ORDERS...</div>
+    if (isLoading) return (
+        <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black pt-24 px-4">
+            <div className="max-w-7xl mx-auto">
+                <div className="animate-pulse">
+                    <div className="h-8 bg-red-900/30 rounded w-48 mb-8"></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {favorites.map((_, i) => (
+                            <div key={i} className="h-64 bg-gray-800/50 rounded-xl"></div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
 
     return (
-        <div className="p-8 bg-[#0f1115] min-h-screen text-white">
-            <h1 className="text-4xl font-black italic mb-10 text-indigo-500 uppercase tracking-tighter">
-                Active_Orders (Clients)
-            </h1>
-
-            <div className="grid gap-6">
-                {data.length > 0 ? data.map((e: any) => (
-                    <div key={e.id} className="bg-[#1a1d23] border border-white/5 p-4 rounded-[32px] flex items-center gap-6 group hover:border-indigo-500/50 transition-all shadow-2xl">
-                        
-                        {/* КАРТИНКА МАШИНЫ ИЗ ЗАКАЗА */}
-                        <div className="relative w-40 h-24 overflow-hidden rounded-[20px] bg-black/20 border border-white/5">
-                            {e.car?.mainImage ? (
-                                <Image 
-                                    src={`http://157.180.29.248:5505/api/images/${getFileName(e.car.mainImage)}`}
-                                    fill
-                                    className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                    alt="Car"
-                                />
-                            ) : (
-                                <div className="flex items-center justify-center h-full text-[10px] text-slate-600 font-bold uppercase">No_Img</div>
-                            )}
-                        </div>
-
-                        {/* ИНФОРМАЦИЯ О КЛИЕНТЕ И МАШИНЕ */}
-                        <div className="flex-grow">
-                            <h2 className="text-xl font-black italic uppercase tracking-tight text-slate-200">
-                                {e.userName || e.clientName || `User_ID: ${e.userId}`}
-                            </h2>
-                            <div className="flex items-center gap-3 mt-1">
-                                <span className="text-indigo-400 font-black text-xs uppercase italic">
-                                    {e.car?.model || "Unknown Unit"}
-                                </span>
-                                <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
-                                    Year: {e.car?.year}
-                                </span>
-                            </div>
-                            <p className="text-[10px] text-slate-500 font-bold mt-2 uppercase">
-                                Final Price: <span className="text-green-500">${e.finalPrice?.toLocaleString()}</span>
-                            </p>
-                        </div>
-
-                        {/* СТАТУС И УПРАВЛЕНИЕ */}
-                        <div className="text-right flex flex-col items-end gap-2 pr-4">
-                            <div>
-                                <p className="text-[9px] font-black text-slate-600 uppercase mb-1">Current Status</p>
-                                <span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-full font-black italic text-[10px] border border-green-500/20 uppercase">
-                                    {e.status === 0 ? "Active" : "Completed"}
-                                </span>
-                            </div>
-                            <button 
-                                onClick={() => deleteClient(e.id)} 
-                                className="mt-2 text-red-500 hover:text-white hover:bg-red-500 border border-red-500/30 px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest"
-                            >
-                                Delete
-                            </button>
-                        </div>
+        <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black pt-24 px-4 pb-12">
+            <div className="max-w-7xl mx-auto">
+                <div className="mb-10">
+                    <div className="flex items-center gap-3 mb-4">
+                        <Heart className="w-10 h-10 text-red-600 animate-pulse" fill="currentColor" />
+                        <h1 className="text-4xl font-bold bg-gradient-to-r from-red-600 via-red-500 to-orange-500 bg-clip-text text-transparent">
+                            ИЗБРАННЫЕ АВТО
+                        </h1>
                     </div>
-                )) : (
-                    <div className="text-slate-500 font-bold italic p-10 border border-dashed border-white/5 rounded-3xl text-center">
-                        NO_ORDERS_FOUND_IN_SYSTEM
+                    <p className="text-gray-400 text-lg">
+                        Коллекция ваших агрессивных машин ({favorites.length})
+                    </p>
+                </div>
+
+                {favorites.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {favorites.map((car) => (
+                            <div
+                                key={car.id}
+                                className="group relative bg-gradient-to-br from-gray-900 via-black to-gray-900 border-2 border-red-900/30 hover:border-red-600 rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-red-900/20"
+                            >
+                                <button
+                                    onClick={() => deleteFavorite(car.id)}
+                                    className="absolute top-4 right-4 z-20 p-2 bg-black/80 hover:bg-red-900/90 rounded-full transition-all duration-200 group-hover:scale-110"
+                                >
+                                    <Trash2 className="w-5 h-5 text-red-500" />
+                                </button>
+
+                                <div className="relative h-48 overflow-hidden bg-gradient-to-b from-red-900/20 to-black">
+                                    <Image
+                                        src={car.image || '/placeholder-car.jpg'}
+                                        alt={`${car.brand} ${car.model}`}
+                                        fill
+                                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
+                                    
+                                    <div className="absolute top-4 left-4">
+                                        <span className="px-3 py-1 bg-gradient-to-r from-red-700 to-red-900 text-white text-sm font-bold rounded-full uppercase tracking-wider">
+                                            {car.type}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="p-6">
+                                    <div className="mb-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h3 className="text-2xl font-bold text-white">
+                                                {car.brand}
+                                            </h3>
+                                            <Car className="w-6 h-6 text-red-500" />
+                                        </div>
+                                        <p className="text-3xl font-black bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent">
+                                            {car.model}
+                                        </p>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-900/30 to-black rounded-xl border border-red-900/50">
+                                        <div className="flex items-center gap-2">
+                                            <DollarSign className="w-5 h-5 text-red-400" />
+                                            <span className="text-gray-300">Цена:</span>
+                                        </div>
+                                        <span className="text-2xl font-bold text-white">
+                                            {car.price.toLocaleString()} $
+                                        </span>
+                                    </div>
+
+                                    <button className="w-full mt-6 py-3 bg-gradient-to-r from-red-700 to-red-900 hover:from-red-600 hover:to-red-800 text-white font-bold rounded-xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-lg hover:shadow-red-900/30 active:scale-95">
+                                        ПОДРОБНЕЕ
+                                    </button>
+                                </div>
+
+                                <div className="absolute inset-0 bg-gradient-to-r from-red-600/0 via-red-600/5 to-red-600/0 group-hover:via-red-600/20 transition-all duration-1000 opacity-0 group-hover:opacity-100" />
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="relative mb-8">
+                            <Heart className="w-32 h-32 text-red-900/50" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <Heart className="w-16 h-16 text-red-600 animate-pulse" fill="currentColor" />
+                            </div>
+                        </div>
+                        <h2 className="text-3xl font-bold text-white mb-4">
+                            ПУСТОТА ЗДЕСЬ...
+                        </h2>
+                        <p className="text-gray-400 text-lg max-w-md mb-8">
+                            Добавляйте агрессивные автомобили в избранное, чтобы они появились здесь
+                        </p>
+                        <Link href={'/bye'}>
+                        <button className="px-8 py-3 bg-gradient-to-r from-red-700 to-red-900 hover:from-red-600 hover:to-red-800 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105">
+                            КАТАЛОГ АВТО
+                        </button>
+                        </Link>
                     </div>
                 )}
+
+                <div className="mt-12 flex items-center justify-center gap-4">
+                    <div className="h-1 flex-1 bg-gradient-to-r from-transparent via-red-600 to-transparent" />
+                    <span className="text-red-500 font-bold tracking-widest uppercase text-sm">АГРЕССИВНЫЙ ВЫБОР</span>
+                    <div className="h-1 flex-1 bg-gradient-to-r from-transparent via-red-600 to-transparent" />
+                </div>
             </div>
         </div>
     )
 }
 
-export default Page;
+export default FavoritesPage;

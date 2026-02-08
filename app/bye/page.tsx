@@ -10,6 +10,8 @@ import { useBearStore } from '@/app/store/product';
 import { useBeareBrand } from '@/app/store/brand'
 import { useLikeStore } from '../store/favorite';
 import Image from 'next/image';
+import { axiosRequest } from '@/utils/axios';
+import { get } from 'http';
 
 const Car = (props: any) => (
   <svg
@@ -143,12 +145,13 @@ const AllProductsPage = () => {
     }));
   };
 
-  const toggleFavorite = (productId: number) => {
-    setFavorites((prev) =>
-      prev.includes(productId)
-        ? prev.filter((id) => id !== productId)
-        : [...prev, productId]
-    );
+  const toggleFavorite = async (productId: number) => {
+      try {
+        await axiosRequest.post(`/Favorites/car/${productId}`);
+        getProduct();
+      } catch (error) {
+        console.error(error);
+      }
   };
 
   const changeActiveImage = (productId: number, imageIndex: number) => {

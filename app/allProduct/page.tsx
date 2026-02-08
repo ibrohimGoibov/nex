@@ -6,9 +6,9 @@ import {
   TrendingUp, Heart, Search, Check, RefreshCw,
   ChevronDown, Car as CarIcon
 } from 'lucide-react';
-import { useBearStore } from '@/app/store/product';
-import { useBeareBrand } from '@/app/store/brand'
+import { axiosRequest } from '@/utils/axios';
 import { useLikeStore } from '../store/favorite';
+import Image from 'next/image';
 
 const Car = (props: any) => (
   <svg
@@ -43,23 +43,50 @@ const AllProductsPage = () => {
   const [activeImages, setActiveImages] = useState<Record<number, number>>({});  
   const [showBrandsModal, setShowBrandsModal] = useState<boolean>(false);
   const [brandSearchQuery, setBrandSearchQuery] = useState<string>("");
-  
-  const getProduct = useBearStore((state: any) => state.getProduct);
-  const data = useBearStore((state: any) => state.data);
+  const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const brand = useBeareBrand((state:any) => state.data)
-  const getBrands = useBeareBrand((state:any) => state.getBrands)
-  const LikeCar = useLikeStore((state:any) => state.LikeCar)
-  
+  const LikeCar = useLikeStore((state:any) => state.LikeCar);
+
+  // Функция для получения имени файла из пути
+  const getFileName = (path: string) => {
+    if (!path) return '';
+    const parts = path.split('/');
+    return parts[parts.length - 1];
+  };
+
+  // Функция для формирования правильного URL изображения
+  const getImageUrl = (imagePath: string) => {
+    if (!imagePath) return 'https://via.placeholder.com/300x200/1f2937/ffffff?text=Car+Image';
+    const fileName = getFileName(imagePath);
+    return `http://157.180.29.248:5505/api/images/${fileName}`;
+  };
+
+  async function getRentCar() {
+    try {
+      let {data} = await axiosRequest.get(`/RentCar/all`);
+      setData(data || []);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function favorite(id:number) {
+    try {
+      await axiosRequest.post(`/Favorites/rent-car/${id}`);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   function handleAdd(carId: number | string) {
     LikeCar(carId);
   }
-  
+
   useEffect(() => {
     const loadProducts = async () => {
       try {
         setLoading(true);
-        await getProduct();
+        await getRentCar();
       } catch (error) {
         console.error('Error loading products:', error);
       } finally {
@@ -68,9 +95,8 @@ const AllProductsPage = () => {
     };
     
     loadProducts();
-  }, [getProduct]);
+  }, []);
 
-  
   useEffect(() => {
     if (data && data.length > 0) {
       const initialActiveImages: Record<number, number> = {};
@@ -81,7 +107,6 @@ const AllProductsPage = () => {
     }
   }, [data]);
 
-  
   const categories = [
     { id: 'suv', name: 'SUV', count: 45, icon: Truck, color: 'from-red-600 to-orange-500' },
     { id: 'sedan', name: 'Sedan', count: 32, icon: Car, color: 'from-red-500 to-pink-500' },
@@ -90,14 +115,21 @@ const AllProductsPage = () => {
     { id: 'truck', name: 'Truck', count: 15, icon: Truck, color: 'from-red-800 to-rose-500' },
   ];
 
-  
-  const brands = Array.from(new Set(data?.map((p: any) => p.brandName) || []))
-    .map((brand:any) => ({
+  const brands = Array.from(
+    new Set(
+      data
+        ?.map((p: any) => p?.brandName)
+        .filter((brand: any): brand is string => 
+          typeof brand === 'string' && brand.trim() !== ''
+        ) || []
+    )
+  )
+    .map((brand: string) => ({
       id: brand.toLowerCase().replace(/\s+/g, '-'),
       name: brand,
-      products: data?.filter((p: any) => p.brandName === brand).length || 0
+      products: data?.filter((p: any) => p?.brandName === brand).length || 0
     }))
-    .slice(0, 5); 
+    .slice(0, 5);
 
   const priceFilters = [
     { label: "Under $10k", min: 0, max: 10000 },
@@ -136,14 +168,6 @@ const AllProductsPage = () => {
     }));
   };
 
-  const toggleFavorite = (productId: number) => {
-    setFavorites((prev) =>
-      prev.includes(productId)
-        ? prev.filter((id) => id !== productId)
-        : [...prev, productId]
-    );
-  };
-
   const changeActiveImage = (productId: number, imageIndex: number) => {
     setActiveImages((prev) => ({
       ...prev,
@@ -160,55 +184,57 @@ const AllProductsPage = () => {
     setSearchQuery('');
   };
 
-  
   const filteredProducts = data?.filter((product: any) => {
-    const price = product.price || 0;
+    const price = product?.pricePerDay || 0;
     if (price < priceRange[0] || price > priceRange[1]) return false;
     
-    if (selectedCategories.length > 0 && !selectedCategories.includes(product.carClass?.toLowerCase())) return false;
-    
-    if (selectedBrands.length > 0) {
-      const productBrandId = product.brandName?.toLowerCase().replace(/\s+/g, '-');
-      if (!selectedBrands.includes(productBrandId)) return false;
+    if (selectedCategories.length > 0 && product?.carClass) {
+      const productCategory = product.carClass.toLowerCase();
+      if (!selectedCategories.includes(productCategory)) return false;
     }
     
+    if (selectedBrands.length > 0 && product?.brandName) {
+      const productBrandId = product.brandName.toLowerCase().replace(/\s+/g, '-');
+      if (!selectedBrands.includes(productBrandId)) return false;
+    }
     
     const productRating = Math.random() * 2 + 3; 
     if (rating > 0 && productRating < rating) return false;
     
-    if (availability === 'in-stock' && !product.inStock) return false;
-    if (availability === 'out-of-stock' && product.inStock) return false;
+    if (availability === 'in-stock' && !product?.inStock) return false;
+    if (availability === 'out-of-stock' && product?.inStock) return false;
     
-    if (searchQuery && !product.model?.toLowerCase().includes(searchQuery.toLowerCase()) && 
-        !product.brandName?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery && product?.model && product?.brandName) {
+      const modelMatch = product.model.toLowerCase().includes(searchQuery.toLowerCase());
+      const brandMatch = product.brandName.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!modelMatch && !brandMatch) return false;
+    }
     
     return true;
   }) || [];
 
-  
   const sortedProducts = [...filteredProducts].sort((a: any, b: any) => {
     switch (sortBy) {
-      case 'price-low': return (a.price || 0) - (b.price || 0);
-      case 'price-high': return (b.price || 0) - (a.price || 0);
-      case 'rating': return (b.rating || 0) - (a.rating || 0);
-      case 'year': return (b.year || 0) - (a.year || 0);
+      case 'price-low': return (a?.pricePerDay || 0) - (b?.pricePerDay || 0);
+      case 'price-high': return (b?.pricePerDay || 0) - (a?.pricePerDay || 0);
+      case 'rating': return (b?.rating || 0) - (a?.rating || 0);
+      case 'year': return (b?.year || 0) - (a?.year || 0);
       default: return 0;
     }
   });
 
-  
   const getProductTags = (product: any) => {
     const tags = [];
-    const year = product.year || 0;
+    const year = product?.year || 0;
     const currentYear = new Date().getFullYear();
     
     if (year >= currentYear - 1) {
       tags.push("NEW MODEL");
     }
-    if (product.price && product.price < 20000) {
+    if (product?.pricePerDay && product.pricePerDay < 20000) {
       tags.push("BEST DEAL");
     }
-    if (product.price && product.price > 50000) {
+    if (product?.pricePerDay && product.pricePerDay > 50000) {
       tags.push("PREMIUM");
     }
     if (Math.random() > 0.7) {
@@ -218,13 +244,11 @@ const AllProductsPage = () => {
     return tags;
   };
 
-  
   const getRandomRating = (id: number) => {
     const seed = id * 123456;
     return 3 + (seed % 200) / 100; 
   };
 
-  
   const getRandomReviews = (id: number) => {
     const seed = id * 654321;
     return 50 + (seed % 450); 
@@ -243,6 +267,7 @@ const AllProductsPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-4 md:p-8 mt-[50px]">
+      
       {showBrandsModal && (
         <div className="fixed inset-0 z-50">
           <div 
@@ -761,9 +786,10 @@ const AllProductsPage = () => {
                   const tags = getProductTags(product);
                   const productRating = getRandomRating(product.id);
                   const reviews = getRandomReviews(product.id);
-                  const displayPrice = product.price ? `$${product.price.toLocaleString()}` : 'Price on request';
+                  const displayPrice = product?.pricePerDay ? `$${product.pricePerDay.toLocaleString()}` : 'Price on request';
                   const activeImageIndex = activeImages[product.id] || 0;
-                  const mainImage = product.images?.[activeImageIndex]?.mainImage;
+                  const mainImage = product?.images?.[activeImageIndex];
+                  const isFavorite = favorites.includes(product.id);
                   
                   return (
                     <div
@@ -787,11 +813,17 @@ const AllProductsPage = () => {
 
                       <div className="relative h-48 overflow-hidden">
                         {mainImage ? (
-                          <img
-                            src={`http://157.180.29.248:5505/api/images/${mainImage}`}
-                            alt={`${product.brandName} ${product.model}`}
-                            className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
-                          />
+                          <div className="relative w-full h-full">
+                            <Image
+                              src={getImageUrl(mainImage.url || mainImage)}
+                              alt={`${product?.brandName || 'Unknown'} ${product?.model || 'Car'}`}
+                              fill
+                              className="object-cover transform group-hover:scale-110 transition-transform duration-700"
+                              onError={(e) => {
+                                e.currentTarget.src = 'https://via.placeholder.com/300x200/1f2937/ffffff?text=Car+Image';
+                              }}
+                            />
+                          </div>
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
                             <Car className="w-16 h-16 text-red-500" />
@@ -811,14 +843,15 @@ const AllProductsPage = () => {
                         </div>
 
                         <button
-                          onClick={() => toggleFavorite(product.id)}
+                          onClick={() => {
+                            favorite(product.id);
+                          }}
                           className="absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/70 
                             transition-colors z-20"
                         >
                           <Heart
-                          onClick={() => handleAdd(product.id)}
                             className={`w-5 h-5 transition-all duration-300
-                              ${favorites.includes(product.id) 
+                              ${isFavorite 
                                 ? 'fill-red-500 text-red-500 scale-110' 
                                 : 'text-white hover:text-red-400'
                               }`}
@@ -826,7 +859,7 @@ const AllProductsPage = () => {
                         </button>
                       </div>
 
-                      {product.images && product.images.length > 1 && (
+                      {product?.images && product.images.length > 1 && (
                         <div className="px-5 pt-3 flex gap-2">
                           {product.images.map((img: any, idx: number) => (
                             <button
@@ -838,11 +871,17 @@ const AllProductsPage = () => {
                                   : 'opacity-70 hover:opacity-100 hover:scale-105'
                                 }`}
                             >
-                              <img
-                                src={`http://157.180.29.248:5505/api/images/${img.mainImage}`}
-                                className="w-full h-full object-cover"
-                                alt={`View ${idx + 1}`}
-                              />
+                              <div className="relative w-full h-full">
+                                <Image
+                                  src={getImageUrl(img.url || img)}
+                                  fill
+                                  className="object-cover"
+                                  alt={`View ${idx + 1}`}
+                                  onError={(e) => {
+                                    e.currentTarget.src = 'https://via.placeholder.com/100/1f2937/ffffff?text=Car';
+                                  }}
+                                />
+                              </div>
                             </button>
                           ))}
                         </div>
@@ -851,7 +890,7 @@ const AllProductsPage = () => {
                       <div className="p-5">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">
-                            {product.carClass || 'Premium'}
+                            {product?.carClass || 'Premium'}
                           </span>
                           <div className="flex items-center gap-1">
                             <Star className="w-4 h-4 fill-red-400 text-red-400" />
@@ -861,16 +900,17 @@ const AllProductsPage = () => {
                         </div>
 
                         <h3 className="text-lg font-bold mb-1 text-white group-hover:text-red-300 transition-colors">
-                          {product.brandName} {product.model}
+                          {product?.brandName || 'Unknown Brand'} {product?.model || 'Unknown Model'}
                         </h3>
                         
-                        {product.year && (
+                        {product?.year && (
                           <p className="text-sm text-gray-400 mb-3">Year: {product.year}</p>
                         )}
 
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-bold text-white">{displayPrice}</span>
+                            <span className="text-sm text-gray-400">/day</span>
                           </div>
                         </div>
 
