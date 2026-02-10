@@ -32,10 +32,12 @@ const Header = () => {
       transition-all duration-300"
         >
           <div className="flex items-center justify-between w-[90%] m-auto p-[10px]">
+            <Link href={'/'}>
             <div className="num1 text-[30px] font-[700] cursor-pointer">
               <span className="text-carx-accent">CAR</span>
               <span className="text-red-700 font-[800]">X</span>
             </div>
+            </Link>
 
             <div className="lg:flex hidden items-center gap-[20px] text-[16px] font-medium ">
               <Link href={"/"}>
@@ -61,9 +63,11 @@ const Header = () => {
                   О компании
                 </p>
               </Link>
+              <Link href={'/contact'}>
               <p className="hover:text-red-600 cursor-pointer transition">
                 Контакты
               </p>
+              </Link>
             </div>
             <div className="lg:hidden block"></div>
 
