@@ -19,20 +19,30 @@ export const AnimatedThemeToggler = ({
   const buttonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
-    const updateTheme = () => {
-      setIsDark(document.documentElement.classList.contains("dark"))
-    }
+  const savedTheme = localStorage.getItem("theme")
 
-    updateTheme()
+  if (!savedTheme) {
+    document.documentElement.classList.add("dark")
+    localStorage.setItem("theme", "dark")
+    setIsDark(true)
+  } else {
+    const isDarkTheme = savedTheme === "dark"
+    document.documentElement.classList.toggle("dark", isDarkTheme)
+    setIsDark(isDarkTheme)
+  }
 
-    const observer = new MutationObserver(updateTheme)
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    })
+  const observer = new MutationObserver(() => {
+    setIsDark(document.documentElement.classList.contains("dark"))
+  })
 
-    return () => observer.disconnect()
-  }, [])
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  })
+
+  return () => observer.disconnect()
+}, [])
+
 
   const toggleTheme = useCallback(async () => {
     if (!buttonRef.current) return
